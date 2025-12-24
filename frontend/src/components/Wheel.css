@@ -1,0 +1,32 @@
+.wheel-container {
+  position: relative;
+  display: inline-block;
+  background: white;
+  border-radius: 50%;
+  padding: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.wheel-canvas {
+  display: block;
+  border-radius: 50%;
+}
+
+.wheel-container.spinning {
+  animation: spin 2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(1800deg);
+  }
+}
+
+.wheel-container:hover {
+  transform: scale(1.02);
+}
+
