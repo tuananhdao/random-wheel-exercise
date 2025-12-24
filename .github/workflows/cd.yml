@@ -4,32 +4,51 @@ on:
   push:
     branches: [main]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service:
+          - name: backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - name: frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
     
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-      - name: Log in to GHCR
-        uses: docker/login-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Build and push backend
-        run: |
-          cd backend
-          docker build -t ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-backend:latest .
-          docker tag ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-backend:latest ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-backend:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-backend:latest
-          docker push ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-backend:${{ github.sha }}
-      
-      - name: Build and push frontend
-        run: |
-          cd frontend
-          docker build -t ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-frontend:latest .
-          docker tag ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-frontend:latest ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-frontend:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-frontend:latest
-          docker push ghcr.io/${{ github.repository_owner }}/random-wheel-exercise-frontend:${{ github.sha }}
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
